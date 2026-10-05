@@ -2,6 +2,7 @@ import pool from '../db.js';
 import { ingestNews } from './ingestNews.js';
 import { rankNews } from './rankNews.js';
 import { createScript } from './generateScript.js';
+import { tracks } from '../config/tracks.js';
 
 // How many news reels to draft per audience each morning. B2C grows on
 // volume; B2B on consistency, so the defaults differ.
@@ -40,6 +41,19 @@ export async function dailyRun() {
         drafted.push({ audience, script_id: script.id, title: script.title });
       } catch (err) {
         errors.push({ audience, news_item: item.title, error: err.message });
+      }
+    }
+  }
+
+  // Track reels don't depend on the news: one fresh topic per track per day.
+  const perTrack = Number(process.env.DAILY_TRACK_DRAFTS ?? 1);
+  for (const t of Object.values(tracks)) {
+    for (let k = 0; k < perTrack; k++) {
+      try {
+        const script = await createScript({ audience: t.audience, kind: 'custom', track: t.id });
+        drafted.push({ audience: t.audience, track: t.id, script_id: script.id, title: script.title });
+      } catch (err) {
+        errors.push({ track: t.id, error: err.message });
       }
     }
   }

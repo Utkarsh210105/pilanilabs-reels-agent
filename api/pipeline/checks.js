@@ -3,6 +3,7 @@
 // following an instruction.
 import { audiences } from '../config/audiences.js';
 import { brand } from '../config/brand.js';
+import { tracks } from '../config/tracks.js';
 
 // Spoken-rate estimate for a HeyGen voice at normal pace (~150 wpm).
 const WORDS_PER_SECOND = 2.5;
@@ -78,7 +79,7 @@ export function hinglishRatio(text) {
 // Returns flags: { code, severity: 'error' | 'warn', message, segment? }.
 // 'error' flags trigger the automatic rewrite at generation time and must be
 // overridden explicitly to approve; 'warn' flags are shown to the reviewer.
-export function runChecks(segments, audienceId) {
+export function runChecks(segments, audienceId, trackId = null) {
   const audience = audiences[audienceId];
   const flags = [];
   const all = spokenText(segments);
@@ -136,8 +137,14 @@ export function runChecks(segments, audienceId) {
     }
     // "Comment LEARN to get the roadmap" promises something nobody set up.
     // The configured keyword ("AI") is real: ManyChat answers it.
-    const keyword = brand.engagement?.enabled ? brand.engagement.keyword : null;
-    const usesKeyword = keyword && new RegExp(`["'“]?\\b${keyword}\\b["'”]?`).test(s.text) && /comment/i.test(s.text);
+    // Track keywords ("JOB" → roadmap) are real too.
+    const keyword = trackId ? tracks[trackId]?.engagement?.keyword : (brand.engagement?.enabled ? brand.engagement.keyword : null);
+    const usesKeyword = keyword && new RegExp(`\\b${keyword}\\b`).test(s.text) && /comment/i.test(s.text);
+    for (const rule of (trackId && tracks[trackId]?.forbidden) || []) {
+      if (rule.re.test(s.text) || rule.re.test(s.on_screen_text || '')) {
+        flags.push({ code: 'misleading_promise', severity: 'error', message: rule.why, segment: i });
+      }
+    }
     if (!usesKeyword && /\bcomment\b.{0,40}\b(likho|karo|below|for|to get)\b|\bcomment (mein|me|below)\b/i.test(s.text)) {
       flags.push({ code: 'comment_bait', severity: 'error', message: 'Asks viewers to comment for a freebie that does not exist. Use the normal call to action.', segment: i });
     }

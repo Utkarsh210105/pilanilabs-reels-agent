@@ -10,10 +10,12 @@ const STATUS_LABEL = { draft: 'To review', approved: 'Approved', rendered: 'Rend
 export default function Queue() {
   const [status, setStatus] = useState('draft');
   const [audience, setAudience] = useState('');
-  const [scripts, error] = useLoad(() => api.scripts({ status, ...(audience && { audience }) }), [status, audience]);
+  // The audience filter also offers tracks, as "track:<id>".
+  const filter = audience.startsWith('track:') ? { track: audience.slice(6) } : audience ? { audience } : {};
+  const [scripts, error] = useLoad(() => api.scripts({ status, ...filter }), [status, audience]);
   const [counts] = useLoad(() => api.scriptCounts(), [status]);
 
-  const countFor = (s) => (counts || []).filter((c) => c.status === s && (!audience || c.audience === audience)).reduce((n, c) => n + c.n, 0);
+  const countFor = (s) => (counts || []).filter((c) => c.status === s && (!audience || audience.startsWith('track:') || c.audience === audience)).reduce((n, c) => n + c.n, 0);
 
   return (
     <>
@@ -31,6 +33,7 @@ export default function Queue() {
           <option value="">All audiences</option>
           <option value="b2b">B2B · CXOs</option>
           <option value="b2c">B2C · Everyone</option>
+          <option value="track:first-job">Pehli Job with AI</option>
         </select>
       </div>
 
@@ -49,6 +52,7 @@ export default function Queue() {
               <div className="min-w-0 flex-1">
                 <div className="mb-1 flex flex-wrap items-center gap-2">
                   <AudienceChip audience={s.audience} />
+                  {s.track && <span className="chip" style={{ color: 'var(--c-gold-ink)' }}>{s.track === 'first-job' ? 'Pehli Job' : s.track}</span>}
                   <span className="label">{s.series}</span>
                 </div>
                 <div className="truncate font-medium">{s.title}</div>

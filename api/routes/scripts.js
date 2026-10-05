@@ -22,14 +22,14 @@ router.get('/', async (req, res, next) => {
   try {
     const params = [];
     const where = [];
-    for (const key of ['status', 'audience', 'kind']) {
+    for (const key of ['status', 'audience', 'kind', 'track']) {
       if (req.query[key]) {
         params.push(req.query[key]);
         where.push(`s.${key} = $${params.length}`);
       }
     }
     const { rows } = await pool.query(
-      `SELECT s.id, s.audience, s.series, s.kind, s.title, s.status, s.word_count, s.est_seconds, s.version,
+      `SELECT s.id, s.audience, s.series, s.kind, s.track, s.title, s.status, s.word_count, s.est_seconds, s.version,
          s.created_at, s.updated_at, s.approved_at,
          jsonb_array_length(s.segments) AS segment_count,
          (SELECT count(*) FROM jsonb_array_elements(s.flags) f WHERE f->>'severity' = 'error')::int AS error_count,
@@ -92,9 +92,9 @@ router.get('/:id/versions/:version', async (req, res, next) => {
 // waits for it, and it is also recorded as a job so a failure is visible.
 router.post('/', async (req, res, next) => {
   try {
-    const { audience, kind, news_item_id, offering, brief, source_reel_id } = req.body || {};
+    const { audience, kind, news_item_id, offering, brief, source_reel_id, track } = req.body || {};
     const script = await runJob('generate_script', `${audience} ${kind}`, () =>
-      createScript({ audience, kind, news_item_id, offering, brief, source_reel_id }));
+      createScript({ audience, kind, news_item_id, offering, brief, source_reel_id, track }));
     res.status(201).json(script);
   } catch (err) { next(err); }
 });

@@ -3,6 +3,7 @@ import { timingSafeEqual } from 'crypto';
 import pool from '../db.js';
 import { recordLead } from '../pipeline/leads.js';
 import { brand } from '../config/brand.js';
+import { tracks } from '../config/tracks.js';
 
 const router = Router();
 
@@ -78,6 +79,11 @@ router.get('/setup', (req, res) => {
     public_url: process.env.PUBLIC_URL || null,
     path: '/api/leads/manychat',
     keyword: brand.engagement?.keyword,
+    // One ManyChat automation per keyword, each with its own DM.
+    keywords: [
+      ...(brand.engagement?.enabled ? [{ keyword: brand.engagement.keyword, sends: brand.engagement.offer }] : []),
+      ...Object.values(tracks).filter((t) => t.engagement).map((t) => ({ keyword: t.engagement.keyword, sends: t.engagement.offer, track: t.label })),
+    ],
   });
 });
 

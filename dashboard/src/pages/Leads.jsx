@@ -19,13 +19,16 @@ function Copy({ text }) {
 function Setup() {
   const [setup] = useLoad(() => api.leadsSetup());
   const [open, setOpen] = useState(false);
+  const [kw, setKw] = useState('');
   if (!setup) return null;
+  const keywords = setup.keywords?.length ? setup.keywords : [{ keyword: setup.keyword, sends: 'the community link' }];
+  const current = keywords.find((k) => k.keyword === kw) || keywords[0];
   const url = `${setup.public_url || 'https://YOUR-PUBLIC-ADDRESS'}${setup.path}`;
   const body = JSON.stringify({
     manychat_id: '{{user_id}}',
     ig_username: '{{ig_username}}',
     name: '{{full_name}}',
-    keyword: setup.keyword,
+    keyword: current.keyword,
     comment: '{{last_input_text}}',
     followed: 'true',
   }, null, 2);
@@ -34,11 +37,22 @@ function Setup() {
       <button className="flex w-full items-center gap-2 text-left" onClick={() => setOpen((o) => !o)}>
         {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         <span className="font-medium">ManyChat setup</span>
-        <span className="text-sm text-muted">· keyword "{setup.keyword}"{setup.public_url ? '' : ' · public address not set yet'}</span>
+        <span className="text-sm text-muted">· keywords {keywords.map((k) => `"${k.keyword}"`).join(', ')}{setup.public_url ? '' : ' · public address not set yet'}</span>
       </button>
       {open && (
         <div className="mt-3 grid gap-3 text-sm">
-          <p className="text-muted">In your ManyChat comment automation, after the DM with the community link, add an <strong>External Request</strong> step:</p>
+          <div>
+            <p className="mb-2 text-muted">Make <strong>one ManyChat automation per keyword</strong>. Each sends its own DM:</p>
+            <ul className="grid gap-1">
+              {keywords.map((k) => (
+                <li key={k.keyword}>
+                  <button className={`btn mr-2 px-2 py-0.5 ${current.keyword === k.keyword ? 'btn-primary' : ''}`} onClick={() => setKw(k.keyword)}>"{k.keyword}"</button>
+                  sends {k.sends}{k.track ? ` (${k.track} reels)` : ''}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <p className="text-muted">At the end of the <strong>"{current.keyword}"</strong> automation, after the DM, add an <strong>External Request</strong> step:</p>
           <dl className="grid gap-2 sm:grid-cols-[140px_minmax(0,1fr)]">
             <dt className="label pt-1">Method</dt><dd className="font-mono">POST</dd>
             <dt className="label pt-1">URL</dt>

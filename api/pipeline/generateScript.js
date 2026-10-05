@@ -1,6 +1,7 @@
 import pool from '../db.js';
 import { chatJson, SCRIPT_MODEL, FAST_MODEL } from '../lib/llm.js';
 import { audiences } from '../config/audiences.js';
+import { tracks } from '../config/tracks.js';
 import { brand } from '../config/brand.js';
 import { normalizeSegments, runChecks, hasErrors, spokenText, wordCount, estimateSeconds, copiedPhrases, originalityFlags } from './checks.js';
 import { checkClaims, claimFlags } from './factCheck.js';
@@ -8,7 +9,36 @@ import { checkClaims, claimFlags } from './factCheck.js';
 // The reel's closing line: the comment-keyword CTA when the ManyChat loop is
 // on, otherwise the audience's plain "follow for more".
 export function ctaFor(audience) {
-  return brand.engagement?.enabled ? brand.engagement.cta[audience.id] : audience.ctaFallback;
+  return engagementFor(audience)?.cta || audience.ctaFallback;
+}
+
+// The comment keyword offer for this audience (a track's own, e.g. "JOB" →
+// roadmap, or the default "AI" → community link).
+function engagementFor(audience) {
+  if (audience.engagement) return audience.engagement;
+  if (!brand.engagement?.enabled) return null;
+  return { keyword: brand.engagement.keyword, offer: brand.engagement.offer, cta: brand.engagement.cta[audience.id] };
+}
+
+// A track overlays its listener, voice, hooks, series and keyword on its
+// audience, so everything downstream treats it like an audience.
+export function audienceFor(audienceId, trackId) {
+  const base = audiences[audienceId];
+  if (!base) throw new Error(`Unknown audience "${audienceId}"`);
+  if (!trackId) return base;
+  const t = tracks[trackId];
+  if (!t) throw new Error(`Unknown track "${trackId}"`);
+  if (t.audience !== audienceId) throw new Error(`Track "${trackId}" is for ${t.audience.toUpperCase()} reels`);
+  return {
+    ...base,
+    trackId: t.id,
+    listener: t.listener,
+    voice: [...base.voice.filter((v) => /hinglish|english/i.test(v)), ...t.voice],
+    hookStyles: t.hookStyles,
+    series: { news: t.series, promo: t.series, custom: t.series, inspired: t.series },
+    engagement: t.engagement,
+    topics: t.topics,
+  };
 }
 
 export function findOffering(audienceId, offeringId) {
@@ -66,8 +96,9 @@ RULES:
 - ${brand.presenterName ? `The presenter is ${brand.presenterName} (${brand.presenterNote}) and speaks in first person. Do not invent personal stories, clients or experiences for him. He may introduce himself by name only in promotional reels, never in news reels.` : 'Never give the presenter a name or a personal backstory.'}
 - Never mention prices, fees, discounts or "limited seats"/"offer ends" urgency.
 - Never mention or compare competitors of ${brand.name} (other training or course companies).
-- Never promise freebies or engagement bait that ${brand.name} has not set up: no "comment X to get the guide/roadmap/PDF", no giveaways.${brand.engagement?.enabled ? `
-- The ONLY comment call to action that exists: viewers comment the word "${brand.engagement.keyword}" and get ${brand.engagement.offer} by DM. The final segment must be this call to action, close to: "${brand.engagement.cta[audience.id]}". Keep the keyword exactly "${brand.engagement.keyword}". The caption's last line repeats it, e.g. Comment "${brand.engagement.keyword}" for the WhatsApp community link 👇` : ''}
+- Never promise freebies or engagement bait that ${brand.name} has not set up: no "comment X to get the guide/roadmap/PDF", no giveaways.${engagementFor(audience) ? `
+- The ONLY comment call to action that exists for this reel: viewers comment the word "${engagementFor(audience).keyword}" and get ${engagementFor(audience).offer} by DM. The final segment must be this call to action, close to: "${engagementFor(audience).cta}". Keep the keyword exactly "${engagementFor(audience).keyword}". The caption's last line repeats it, e.g. Comment "${engagementFor(audience).keyword}" 👇` : ''}${audience.trackId === 'first-job' ? `
+- This audience is job seekers. Never promise or imply a guaranteed job, placement or salary; never quote salary figures; never suggest faking experience or lying on a resume. AI helps them prepare better and faster; the effort is theirs.` : ''}
 - Avoid clichés: game changer, revolutionize, unleash, dive in, delve, buckle up, the future is here, landscape, seamless.
 - Only state facts that are in the SOURCE given to you. Never invent numbers, dates, prices, quotes or features. If the source is unclear, say less rather than guess.
 - Avoid "today", "yesterday" or specific weekdays for news timing; the reel may post days later. Use "this week" or "just".
@@ -180,7 +211,7 @@ async function draft({ audience, task, extra }) {
 // error. The second pass is told exactly what failed.
 async function draftChecked({ audience, task, source, copySource, extra }) {
   const allFlags = async (segments, claims) => [
-    ...runChecks(segments, audience.id),
+    ...runChecks(segments, audience.id, audience.trackId),
     ...claimFlags(claims),
     ...(copySource ? copiedPhrases(segments, copySource) : []),
     ...(copySource ? await originalityFlags(segments, copySource, chatJson, SCRIPT_MODEL) : []),
@@ -217,10 +248,22 @@ async function loadReel(id) {
   return rows[0];
 }
 
-export async function createScript({ audience: audienceId, kind, news_item_id, offering: offeringId, brief, source_reel_id }) {
-  const audience = audiences[audienceId];
-  if (!audience) throw new Error(`Unknown audience "${audienceId}"`);
+// A track topic not used in its recent scripts, so daily drafts don't repeat.
+async function pickTrackTopic(audience) {
+  const { rows } = await pool.query(
+    'SELECT brief FROM scripts WHERE track = $1 AND brief IS NOT NULL ORDER BY created_at DESC LIMIT $2',
+    [audience.trackId, Math.max(1, audience.topics.length - 3)],
+  );
+  const recent = new Set(rows.map((r) => r.brief));
+  const fresh = audience.topics.filter((t) => !recent.has(t));
+  const pool_ = fresh.length ? fresh : audience.topics;
+  return pool_[Math.floor(Math.random() * pool_.length)];
+}
+
+export async function createScript({ audience: audienceId, kind, news_item_id, offering: offeringId, brief, source_reel_id, track }) {
+  const audience = audienceFor(audienceId, track || null);
   if (!['news', 'promo', 'custom', 'inspired'].includes(kind)) throw new Error(`Unknown kind "${kind}"`);
+  if (audience.trackId && kind === 'custom' && !brief?.trim()) brief = await pickTrackTopic(audience);
 
   let newsItem = null;
   let offering = null;
@@ -244,11 +287,11 @@ export async function createScript({ audience: audienceId, kind, news_item_id, o
 
   const { rows } = await pool.query(
     `INSERT INTO scripts (audience, series, kind, news_item_id, offering, brief, title, segments, caption, hashtags,
-       flags, claims, word_count, est_seconds, model, source_reel_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
+       flags, claims, word_count, est_seconds, model, source_reel_id, track)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
     [audienceId, audience.series[kind] || audience.series.custom, kind, newsItem?.id ?? null, offering?.id ?? null, brief || null, s.title,
       JSON.stringify(s.segments), s.caption, s.hashtags, JSON.stringify(s.flags), JSON.stringify(s.claims),
-      s.word_count, s.est_seconds, SCRIPT_MODEL, reel?.id ?? null],
+      s.word_count, s.est_seconds, SCRIPT_MODEL, reel?.id ?? null, audience.trackId || null],
   );
   if (newsItem) await pool.query("UPDATE news_items SET status = 'used' WHERE id = $1", [newsItem.id]);
   if (reel) await pool.query("UPDATE creator_reels SET status = 'used' WHERE id = $1", [reel.id]);
@@ -258,17 +301,17 @@ export async function createScript({ audience: audienceId, kind, news_item_id, o
 async function sourceForScript(script) {
   if (script.kind === 'inspired' && script.source_reel_id) {
     const reel = await loadReel(script.source_reel_id);
-    return taskFor({ audience: audiences[script.audience], kind: 'inspired', reel, brief: script.brief });
+    return taskFor({ audience: audienceFor(script.audience, script.track), kind: 'inspired', reel, brief: script.brief });
   }
   if (script.kind === 'news' && script.news_item_id) {
     const n = await loadNewsItem(script.news_item_id);
-    return taskFor({ audience: audiences[script.audience], kind: 'news', newsItem: n, brief: script.brief });
+    return taskFor({ audience: audienceFor(script.audience, script.track), kind: 'news', newsItem: n, brief: script.brief });
   }
   if (script.kind === 'promo') {
     const offering = findOffering(script.audience, script.offering);
-    if (offering) return taskFor({ audience: audiences[script.audience], kind: 'promo', offering, brief: script.brief });
+    if (offering) return taskFor({ audience: audienceFor(script.audience, script.track), kind: 'promo', offering, brief: script.brief });
   }
-  return taskFor({ audience: audiences[script.audience], kind: 'custom', brief: script.brief || script.title });
+  return taskFor({ audience: audienceFor(script.audience, script.track), kind: 'custom', brief: script.brief || script.title });
 }
 
 export async function getScript(id) {
@@ -289,7 +332,7 @@ async function saveVersion(script, reason) {
 export async function rewriteScript(id, feedback) {
   const script = await getScript(id);
   if (!['draft', 'rejected'].includes(script.status)) throw new Error(`Cannot rewrite a script that is ${script.status}`);
-  const audience = audiences[script.audience];
+  const audience = audienceFor(script.audience, script.track);
   const { task, source, copySource } = await sourceForScript(script);
   const extra = `Here is the current draft. Revise it following the reviewer's feedback; keep everything the feedback does not ask to change.
 Reviewer feedback: ${feedback || 'Make it sharper and more engaging.'}
@@ -319,7 +362,7 @@ export async function updateScript(id, { title, segments, caption, hashtags }) {
   const segs = normalizeSegments(segments ?? script.segments);
   const words = wordCount(spokenText(segs));
   const copySource = script.source_reel_id ? (await loadReel(script.source_reel_id)).transcript : null;
-  const flags = [...runChecks(segs, script.audience), ...claimFlags(script.claims), ...(copySource ? copiedPhrases(segs, copySource) : [])];
+  const flags = [...runChecks(segs, script.audience, script.track), ...claimFlags(script.claims), ...(copySource ? copiedPhrases(segs, copySource) : [])];
   const tags = (hashtags ?? script.hashtags).map((h) => String(h).replace(/^#/, '').replace(/\s+/g, '')).filter(Boolean);
 
   await saveVersion(script, 'before manual edit');
@@ -338,7 +381,7 @@ export async function recheckScript(id) {
   const { source, copySource } = await sourceForScript(script);
   const claims = await checkClaims(script.segments, source);
   const flags = [
-    ...runChecks(script.segments, script.audience),
+    ...runChecks(script.segments, script.audience, script.track),
     ...claimFlags(claims),
     ...(copySource ? copiedPhrases(script.segments, copySource) : []),
     ...(copySource ? await originalityFlags(script.segments, copySource, chatJson, SCRIPT_MODEL) : []),

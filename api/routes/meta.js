@@ -3,6 +3,7 @@ import pool from '../db.js';
 import { audiences } from '../config/audiences.js';
 import { brand } from '../config/brand.js';
 import { sources } from '../config/sources.js';
+import { tracks } from '../config/tracks.js';
 
 const router = Router();
 
@@ -11,7 +12,9 @@ const router = Router();
 router.get('/config', (req, res) => {
   res.json({
     audiences,
+    tracks: Object.values(tracks).map(({ forbidden, ...t }) => t),
     offerings: brand.offerings,
+    engagement: brand.engagement,
     brand: { name: brand.name, website: brand.website, proofPoints: brand.proofPoints },
     sources,
     llmConfigured: Boolean(process.env.OPENROUTER_API_KEY),

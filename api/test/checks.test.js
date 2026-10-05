@@ -53,6 +53,20 @@ test('copy guard flags 5-word runs shared with the source reel', () => {
   assert.deepEqual(copiedPhrases(original, source), []);
 });
 
+test('first-job track: guarantees and salaries are errors, the JOB keyword is allowed', () => {
+  const ok = [seg(words(12)), seg(`Resume ko ChatGPT se tailor karo ${words(30)}`, 'broll', 'resume desk'), seg(words(30)),
+    seg('Comment mein JOB likho, main aapko free AI job roadmap DM kar dunga')];
+  const codes = runChecks(ok, 'b2c', 'first-job').map((f) => f.code);
+  assert.ok(!codes.includes('comment_bait'));
+  assert.ok(!codes.includes('misleading_promise'));
+
+  const bad = [seg(words(12)), seg(`Is trick se job guaranteed hai aur 8 LPA milega ${words(25)}`, 'broll', 'x'), seg(words(30)), seg(words(20))];
+  assert.equal(runChecks(bad, 'b2c', 'first-job').filter((f) => f.code === 'misleading_promise').length, 2);
+
+  const wrongKeyword = [seg(words(12)), seg(words(30), 'broll', 'x'), seg(words(30)), seg('Comment mein JOB likho, roadmap bhejta hoon')];
+  assert.ok(runChecks(wrongKeyword, 'b2c').some((f) => f.code === 'comment_bait'), 'JOB is only real inside the first-job track');
+});
+
 test('prices are errors', () => {
   const segments = [seg(words(15)), seg(`Course fee sirf ₹4999 hai ${words(30)}`, 'broll', 'x'), seg(words(30)), seg(words(25))];
   assert.ok(runChecks(segments, 'b2c').some((f) => f.code === 'price_mentioned'));
