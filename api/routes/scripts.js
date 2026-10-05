@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import pool from '../db.js';
 import { runJob, startJob } from '../lib/jobs.js';
-import { matchBrollForScript, chooseBroll, searchBroll } from '../pipeline/matchBroll.js';
+import { matchBrollForScript, chooseBroll, searchBroll, queueBrollMatch, queueBrollPreview } from '../pipeline/matchBroll.js';
 import { renderReel, MEDIA_DIR } from '../pipeline/renderReel.js';
 import { probe } from '../lib/ffmpeg.js';
 import { createWriteStream } from 'fs';
@@ -95,20 +95,38 @@ router.post('/', async (req, res, next) => {
     const { audience, kind, news_item_id, offering, brief, source_reel_id, track } = req.body || {};
     const script = await runJob('generate_script', `${audience} ${kind}`, () =>
       createScript({ audience, kind, news_item_id, offering, brief, source_reel_id, track }));
+    queueBrollPreview(script.id); // free: Pexels search only
     res.status(201).json(script);
   } catch (err) { next(err); }
 });
 
 router.put('/:id', async (req, res, next) => {
   try {
-    res.json(await updateScript(req.params.id, req.body || {}));
+    const script = await updateScript(req.params.id, req.body || {});
+    // Free preview for lines whose text or search phrase changed.
+    queueBrollPreview(script.id);
+    res.json(script);
   } catch (err) { next(err); }
 });
 
 router.post('/:id/rewrite', async (req, res, next) => {
   try {
     const script = await runJob('rewrite_script', req.params.id, () => rewriteScript(req.params.id, req.body?.feedback));
+    queueBrollPreview(script.id);
     res.json(script);
+  } catch (err) { next(err); }
+});
+
+// Whether B-roll matching is running for this script, so the script page can
+// show "Finding clips…" and refresh when it finishes.
+router.get('/:id/broll-status', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, status, error, started_at, finished_at FROM jobs
+       WHERE type = 'match_broll' AND detail = $1 ORDER BY started_at DESC LIMIT 1`,
+      [req.params.id],
+    );
+    res.json(rows[0] || null);
   } catch (err) { next(err); }
 });
 
@@ -123,9 +141,7 @@ router.post('/:id/status', async (req, res, next) => {
     const script = await setStatus(req.params.id, req.body || {});
     // B-roll is picked as soon as a script is approved, so the clips are
     // ready by the time the HeyGen video comes back.
-    if (script.status === 'approved' && process.env.PEXELS_API_KEY) {
-      await startJob('match_broll', script.id, () => matchBrollForScript(script.id).then((r) => r.results));
-    }
+    if (script.status === 'approved') await queueBrollMatch(script.id);
     res.json(script);
   } catch (err) { next(err); }
 });

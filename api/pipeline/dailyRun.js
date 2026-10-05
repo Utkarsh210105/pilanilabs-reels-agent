@@ -2,6 +2,7 @@ import pool from '../db.js';
 import { ingestNews } from './ingestNews.js';
 import { rankNews } from './rankNews.js';
 import { createScript } from './generateScript.js';
+import { queueBrollPreview } from './matchBroll.js';
 import { tracks } from '../config/tracks.js';
 
 // How many news reels to draft per audience each morning. B2C grows on
@@ -38,6 +39,7 @@ export async function dailyRun() {
     for (const item of rows) {
       try {
         const script = await createScript({ audience, kind: 'news', news_item_id: item.id });
+        queueBrollPreview(script.id);
         drafted.push({ audience, script_id: script.id, title: script.title });
       } catch (err) {
         errors.push({ audience, news_item: item.title, error: err.message });
@@ -51,6 +53,7 @@ export async function dailyRun() {
     for (let k = 0; k < perTrack; k++) {
       try {
         const script = await createScript({ audience: t.audience, kind: 'custom', track: t.id });
+        queueBrollPreview(script.id);
         drafted.push({ audience: t.audience, track: t.id, script_id: script.id, title: script.title });
       } catch (err) {
         errors.push({ track: t.id, error: err.message });

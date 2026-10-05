@@ -79,7 +79,7 @@ export async function renderReel(scriptId, jobId) {
     const brollSegs = script.segments.map((s, i) => [s, i]).filter(([s]) => s.visual === 'broll');
     const missing = brollSegs.some(([s, i]) => {
       const b = script.broll?.[String(i)];
-      return !b || b.text !== s.text || b.query !== s.broll_query;
+      return !b || b.status !== 'picked' || b.text !== s.text || b.query !== s.broll_query;
     });
     if (missing && process.env.PEXELS_API_KEY) {
       await progress('Finding B-roll');

@@ -3,6 +3,7 @@ import { chatJson, SCRIPT_MODEL } from '../lib/llm.js';
 import { searchPexelsVideos } from '../lib/pexels.js';
 import { wordCount } from './checks.js';
 import { getScript } from './generateScript.js';
+import { startJob } from '../lib/jobs.js';
 
 const CANDIDATES = 6;
 
@@ -154,6 +155,55 @@ export async function matchBrollForScript(id, { force = false } = {}) {
 
   const { rows } = await pool.query('UPDATE scripts SET broll = $1, updated_at = now() WHERE id = $2 RETURNING *', [JSON.stringify(broll), id]);
   return { script: rows[0], results };
+}
+
+// FREE preview (Pexels search only, no Claude): the top vertical result for
+// every B-roll line without a pick, so a draft shows clips while it is being
+// reviewed. Marked status 'preview'; the paid AI check replaces it on approve.
+export async function previewBroll(scriptId) {
+  const script = await getScript(scriptId);
+  const broll = { ...(script.broll || {}) };
+  const used = new Set(Object.values(broll).map((b) => b.clip?.id).filter(Boolean));
+  let added = 0;
+  for (const [i, seg] of script.segments.entries()) {
+    const key = String(i);
+    if (seg.visual !== 'broll' || !seg.broll_query) continue;
+    const prev = broll[key];
+    if (prev && prev.text === seg.text && prev.query === seg.broll_query) continue;
+    const minSeconds = Math.max(3, Math.ceil(wordCount(seg.text) / 2.5));
+    const candidates = (await searchPexelsVideos(seg.broll_query, { orientation: 'portrait', perPage: 12 }))
+      .filter((c) => !used.has(c.id) && c.duration >= minSeconds)
+      .slice(0, CANDIDATES);
+    if (!candidates.length) continue;
+    used.add(candidates[0].id);
+    broll[key] = {
+      status: 'preview', clip: candidates[0], candidates, query: seg.broll_query, text: seg.text,
+      reason: 'Top Pexels result, not checked by AI yet. Checked when you approve (or click Find B-roll).',
+      picked_at: new Date().toISOString(),
+    };
+    added += 1;
+  }
+  if (added) await pool.query('UPDATE scripts SET broll = $1, updated_at = now() WHERE id = $2', [JSON.stringify(broll), scriptId]);
+  return { added };
+}
+
+export function queueBrollPreview(scriptId) {
+  if (!process.env.PEXELS_API_KEY) return;
+  previewBroll(scriptId).catch((err) => console.error('[broll-preview]', err.message));
+}
+
+// The PAID check (Claude looks at the clips). Runs on approve and on the Find
+// B-roll button only, so credits go to reels that are actually being made.
+// Picks that still fit their line are kept, so repeat calls are cheap.
+export async function queueBrollMatch(scriptId) {
+  if (!process.env.PEXELS_API_KEY) return null;
+  const { rows } = await pool.query(
+    `SELECT id FROM jobs WHERE type = 'match_broll' AND detail = $1 AND status = 'running'
+       AND started_at > now() - interval '20 minutes' LIMIT 1`,
+    [scriptId],
+  );
+  if (rows[0]) return rows[0].id;
+  return startJob('match_broll', scriptId, () => matchBrollForScript(scriptId).then((r) => r.results));
 }
 
 // Reviewer picks a different candidate (or a clip from a fresh search).

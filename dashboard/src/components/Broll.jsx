@@ -81,7 +81,11 @@ export function BrollPick({ scriptId, segment, seg, pick, onUpdated }) {
         ? <ClipThumb clip={pick.clip} onClick={() => setOpen(true)} />
         : <div className="flex shrink-0 items-center justify-center rounded-md border border-dashed border-line text-center text-[11px] text-muted" style={{ width: 88, aspectRatio: '9 / 16' }}>{pick ? 'No clip' : 'Not picked yet'}</div>}
       <div className="min-w-0 flex-1 text-sm">
-        <div className="label mb-1">B-roll clip</div>
+        <div className="label mb-1 flex flex-wrap items-center gap-2">
+          B-roll clip
+          {pick?.status === 'preview' && <span className="chip normal-case" style={{ color: 'var(--c-warn)' }} title="Free Pexels preview. The AI check runs when you approve.">Preview · not AI-checked</span>}
+          {pick?.status === 'picked' && <span className="chip normal-case" style={{ color: 'var(--c-ok)' }}>AI-checked{pick.score ? ` ${pick.score}/10` : ''}</span>}
+        </div>
         {stale && <p className="mb-1 text-xs" style={{ color: 'var(--c-warn)' }}>The line or search changed since this was picked. Click Find B-roll to update.</p>}
         {pick?.reason && <p className="text-xs text-muted">{pick.reason}</p>}
         {pick?.clip && (

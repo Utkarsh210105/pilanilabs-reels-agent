@@ -140,6 +140,28 @@ export default function ScriptPage() {
     api.script(id).then(load, setError);
   }, [id]);
 
+  // The free B-roll preview fills in a few seconds after a script is written
+  // or edited; refresh only the clips (never the editor) until every B-roll
+  // line has one, for up to ~30 seconds.
+  const brollKey = script ? `${script.id}:${script.version}` : '';
+  useEffect(() => {
+    if (!script) return undefined;
+    const missing = () => script.segments.some((s, i) => s.visual === 'broll' && s.broll_query && !script.broll?.[String(i)]?.clip);
+    if (!missing()) return undefined;
+    let tries = 0;
+    const timer = setInterval(async () => {
+      tries += 1;
+      try {
+        const fresh = await api.script(script.id);
+        setScript((prev) => (prev ? { ...prev, broll: fresh.broll } : prev));
+        const stillMissing = fresh.segments.some((s, i) => s.visual === 'broll' && s.broll_query && !fresh.broll?.[String(i)]?.clip);
+        if (!stillMissing || tries >= 10) clearInterval(timer);
+      } catch { clearInterval(timer); }
+    }, 3000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brollKey]);
+
   const dirty = useMemo(() => script && draft && (
     draft.title !== script.title
     || JSON.stringify(draft.segments) !== JSON.stringify(script.segments)
@@ -288,7 +310,7 @@ export default function ScriptPage() {
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <span className="text-sm text-muted">
                 {brollCount.picked}/{brollCount.total} B-roll lines have a clip
-                {script.status === 'draft' && brollCount.picked === 0 && ' · picked automatically on approve'}
+                {script.status === 'draft' && ' · free previews now, AI check when you approve'}
               </span>
               <button
                 className="btn"
