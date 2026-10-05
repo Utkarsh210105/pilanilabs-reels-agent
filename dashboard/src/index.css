@@ -1,0 +1,152 @@
+@import "tailwindcss";
+
+/* Same visual language as the Namhya marketing engine: warm gold accent,
+   mono labels, hairline borders instead of shadows. */
+@theme {
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-page: var(--c-page);
+  --color-surface: var(--c-surface);
+  --color-hover: var(--c-hover);
+  --color-line: var(--c-line);
+  --color-ink: var(--c-ink);
+  --color-muted: var(--c-muted);
+  --color-gold: var(--c-gold);
+  --color-gold-ink: var(--c-gold-ink);
+  --color-ok: var(--c-ok);
+  --color-warn: var(--c-warn);
+  --color-bad: var(--c-bad);
+  --color-b2b: var(--c-b2b);
+  --color-b2c: var(--c-b2c);
+}
+
+:root {
+  --c-page: #F7F6F3;
+  --c-surface: #FFFFFF;
+  --c-hover: rgba(10, 10, 15, 0.04);
+  --c-line: rgba(10, 10, 15, 0.1);
+  --c-ink: #16161C;
+  --c-muted: #6B6A63;
+  --c-gold: #F2B84B;
+  --c-gold-ink: #9A6B12;
+  --c-ok: #2F8A57;
+  --c-warn: #B7791F;
+  --c-bad: #C0392B;
+  --c-b2b: #3B5BDB;
+  --c-b2c: #C2255C;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --c-page: #0B0D13;
+    --c-surface: #13141C;
+    --c-hover: rgba(255, 255, 255, 0.05);
+    --c-line: rgba(255, 255, 255, 0.1);
+    --c-ink: #F2F2F5;
+    --c-muted: #A1A1AA;
+    --c-gold-ink: #F2B84B;
+    --c-ok: #5BC98A;
+    --c-warn: #E7B45A;
+    --c-bad: #F07167;
+    --c-b2b: #8DA2FB;
+    --c-b2c: #F783AC;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --c-page: #0B0D13;
+  --c-surface: #13141C;
+  --c-hover: rgba(255, 255, 255, 0.05);
+  --c-line: rgba(255, 255, 255, 0.1);
+  --c-ink: #F2F2F5;
+  --c-muted: #A1A1AA;
+  --c-gold-ink: #F2B84B;
+  --c-ok: #5BC98A;
+  --c-warn: #E7B45A;
+  --c-bad: #F07167;
+  --c-b2b: #8DA2FB;
+  --c-b2c: #F783AC;
+  color-scheme: dark;
+}
+
+body {
+  background: var(--c-page);
+  color: var(--c-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* In the components layer so Tailwind utilities (w-auto, px-2...) can
+   override these on a single element. */
+@layer components {
+.label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--c-muted);
+}
+
+.card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: 10px;
+}
+
+.input {
+  width: 100%;
+  background: var(--c-page);
+  border: 1px solid var(--c-line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 14px;
+  color: var(--c-ink);
+  outline: none;
+}
+.input:focus { border-color: var(--c-gold); }
+textarea.input { resize: vertical; line-height: 1.5; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border: 1px solid var(--c-line);
+  color: var(--c-ink);
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) { background: var(--c-hover); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-primary { background: var(--c-gold); border-color: var(--c-gold); color: #0A0A0F; }
+.btn-primary:hover:not(:disabled) { background: #E0A736; }
+.btn-danger { color: var(--c-bad); }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  border: 1px solid currentColor;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  white-space: nowrap;
+}
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 1s linear infinite; }

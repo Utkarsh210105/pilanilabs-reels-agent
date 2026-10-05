@@ -1,0 +1,9 @@
+{
+  "name": "pilanilabs-reels-agent",
+  "private": true,
+  "scripts": {
+    "setup": "npm --prefix api install && npm --prefix dashboard install && npm --prefix api run migrate",
+    "start": "npm --prefix dashboard run build && npm --prefix api start",
+    "test": "npm --prefix api test"
+  }
+}

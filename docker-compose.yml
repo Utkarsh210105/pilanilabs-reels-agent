@@ -1,0 +1,14 @@
+# Local development database. Production uses Supabase.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: reels
+      POSTGRES_PASSWORD: reels
+      POSTGRES_DB: reels
+    ports:
+      - "5433:5432"
+    volumes:
+      - reels-db:/var/lib/postgresql/data
+volumes:
+  reels-db:
