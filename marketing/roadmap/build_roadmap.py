@@ -177,7 +177,7 @@ def build():
     st += [Spacer(1, 18 * mm), Image(str(LOGO), width=62 * mm, height=62 * mm * 581 / 450), Spacer(1, 12 * mm)]
     st += [p("FREE GUIDE", "cover_kicker"), p("Pehli Job with AI", "cover_title"), p("30 din ka roadmap", "cover_sub"), Spacer(1, 8 * mm)]
     st += [p("Freshers, final-year students aur job seekers ke liye.<br/>Sirf free AI tools. Roz 45 se 60 minute. Har din ek clear kaam.", "cover_text")]
-    st += [Spacer(1, 10 * mm), p("<b>by PilaniLabs</b> · AI Training &amp; Consulting · pilanilabs.com", "cover_text")]
+    st += [Spacer(1, 10 * mm), p("<b>by PilaniLabs</b> · AI Training &amp; Consulting · pilanilabs.com · Instagram @pilanilabs", "cover_text")]
     st += [NextPageTemplate("page"), PageBreak()]
 
     # Before you start -------------------------------------------------------
@@ -394,13 +394,13 @@ def build():
         p("Next steps", "tip_title"), Spacer(1, 3),
         *bullets([
             "<b>PilaniLabs WhatsApp community join karo:</b> link aapke DM mein hai. Wahan AI tips aur updates milte rahenge.",
-            "<b>Instagram par PilaniLabs ko follow karo</b> \"Pehli Job with AI\" ki nayi reels ke liye.",
+            "<b>Instagram par @pilanilabs ko follow karo</b> \"Pehli Job with AI\" ki nayi reels ke liye.",
             "<b>Next cohort ki details:</b> pilanilabs.com par.",
         ]),
     ], GOLD_SOFT, GOLD, pad=12)]
     st += [Spacer(1, 10), box([
         p("Kisi dost ko job chahiye?", "tip_title"),
-        p("Ye roadmap usse bhejo. Ya usse bolo ki PilaniLabs ki kisi \"Pehli Job with AI\" reel par JOB comment kare, roadmap seedha DM mein aa jayega.", "tip"),
+        p("Ye roadmap usse bhejo. Ya usse bolo ki Instagram par @pilanilabs ki kisi \"Pehli Job with AI\" reel par JOB comment kare, roadmap seedha DM mein aa jayega.", "tip"),
     ], BLUE_SOFT, BLUE, pad=12)]
     st += [Spacer(1, 14), p("Ye roadmap guidance hai, job ya salary ki guarantee nahi. AI tools ke free plans aur features time ke saath badal sakte hain. "
                              "AI ka diya hua har jawab khud check karo, khaas kar facts aur numbers.", "muted")]
