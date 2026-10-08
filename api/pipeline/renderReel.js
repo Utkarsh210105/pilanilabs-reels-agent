@@ -115,7 +115,9 @@ export async function renderReel(scriptId, jobId) {
     overlays.forEach((o) => inputs.push('-i', o.file));
     const badgeIdx = 1 + overlays.length;
     const logoIdx = badgeIdx + 1;
-    inputs.push('-i', path.join(ASSETS_DIR, 'logo-badge.png'), '-i', path.join(ASSETS_DIR, 'logo-source.jpg'));
+    // The bare symbol (transparent, soft white edge so the navy reads on dark
+    // footage), not the old emblem-on-grey badge.
+    inputs.push('-i', path.join(ASSETS_DIR, 'logo-symbol.png'), '-i', path.join(ASSETS_DIR, 'logo-source.jpg'));
     const musicIdx = logoIdx + 1;
     if (music) inputs.push('-stream_loop', '-1', '-i', music);
 
@@ -126,7 +128,7 @@ export async function renderReel(scriptId, jobId) {
     });
     const vb = `v${overlays.length}`;
     f.push(`[${vb}]subtitles=captions.ass[sub]`);
-    f.push(`[${badgeIdx}:v]scale=104:-1,format=rgba,colorchannelmixer=aa=0.92[wm]`);
+    f.push(`[${badgeIdx}:v]scale=92:-1,format=rgba,colorchannelmixer=aa=0.95[wm]`);
     f.push(`[sub][wm]overlay=W-w-40:230:format=auto,format=yuv420p[main]`);
     f.push(`color=c=0xEEEEEE:s=1080x1920:r=${FPS}:d=${OUTRO_SECONDS}[obg]`);
     f.push(`[${logoIdx}:v]scale=720:-1[olg]`);
