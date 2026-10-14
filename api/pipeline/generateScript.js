@@ -106,7 +106,8 @@ RULES:
 ALSO WRITE:
 - "title": a short internal title for the dashboard (max 8 words).
 - "caption": the post caption, 1-3 short lines ${audience.language === 'hinglish' ? 'in Hinglish' : 'in English'}, ending with the call to action. No hashtags in it.
-- "hashtags": 4-7 hashtags without the # sign, mixing broad and specific. Ideas: ${audience.hashtagHints.join(', ')}.
+- "hashtags": exactly 5 hashtags without the # sign (Instagram caps a post at 5): 2 broad, 2 niche, 1 series tag. Ideas: ${audience.hashtagHints.join(', ')}.
+- The caption's first line (the ~125 characters the feed shows before "more") must work on its own as a hook.
 
 FORMAT EXAMPLE (for structure and tone only, do not reuse its topic or lines):
 ${JSON.stringify({ segments: EXAMPLES[audience.id] }, null, 1)}
@@ -203,7 +204,8 @@ async function draft({ audience, task, extra }) {
     hashtags: (Array.isArray(out?.hashtags) ? out.hashtags : [])
       .map((h) => String(h).replace(/^#/, '').replace(/\s+/g, ''))
       .filter(Boolean)
-      .slice(0, 8),
+      // Instagram caps a post at 5 hashtags.
+      .slice(0, 5),
   };
 }
 
