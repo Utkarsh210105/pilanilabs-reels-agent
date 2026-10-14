@@ -9,6 +9,7 @@ import scriptsRouter from './routes/scripts.js';
 import metaRouter from './routes/meta.js';
 import creatorsRouter from './routes/creators.js';
 import leadsRouter from './routes/leads.js';
+import toolsRouter from './routes/tools.js';
 import { startScheduler } from './lib/scheduler.js';
 import { MEDIA_DIR } from './pipeline/renderReel.js';
 
@@ -36,6 +37,7 @@ app.use('/api/news', newsRouter);
 app.use('/api/scripts', scriptsRouter);
 app.use('/api/creators', creatorsRouter);
 app.use('/api/leads', leadsRouter);
+app.use('/api/tools', toolsRouter);
 app.use('/api', metaRouter);
 
 // The built dashboard (npm start builds it), so one server on one port runs

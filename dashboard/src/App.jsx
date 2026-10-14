@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Route, Routes } from 'react-router-dom';
-import { ListChecks, Newspaper, PlusCircle, Settings as SettingsIcon, Moon, Sun, Menu, X, TrendingUp, Users } from 'lucide-react';
+import { ListChecks, Newspaper, PlusCircle, Settings as SettingsIcon, Moon, Sun, Menu, X, TrendingUp, Users, Stamp } from 'lucide-react';
+import AddLogo from './pages/AddLogo.jsx';
 import Creators from './pages/Creators.jsx';
 import Leads from './pages/Leads.jsx';
 import Queue from './pages/Queue.jsx';
@@ -16,6 +17,7 @@ const NAV = [
   { to: '/creators', label: 'Creator reels', icon: TrendingUp },
   { to: '/leads', label: 'Leads', icon: Users },
   { to: '/new', label: 'New reel', icon: PlusCircle },
+  { to: '/add-logo', label: 'Add logo', icon: Stamp },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ];
 
@@ -76,6 +78,7 @@ export default function App() {
           <Route path="/news" element={<News />} />
           <Route path="/creators" element={<Creators />} />
           <Route path="/leads" element={<Leads />} />
+          <Route path="/add-logo" element={<AddLogo />} />
           <Route path="/new" element={<NewReel />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>

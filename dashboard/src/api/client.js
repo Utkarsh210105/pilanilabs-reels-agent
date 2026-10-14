@@ -6,6 +6,26 @@ const BASE = `${ORIGIN}/api`;
 export const mediaUrl = (rel) => `${ORIGIN}/media/${rel}`;
 export const finalDownloadUrl = (id) => `${BASE}/scripts/${id}/final.mp4`;
 
+// Add the logo to a finished video. onProgress gets 0..1 during upload, then
+// onProcessing() once the server starts working (~20-60s).
+export function addLogoToVideo(file, onProgress, onProcessing) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${BASE}/tools/add-logo?name=${encodeURIComponent(file.name)}`);
+    xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
+    xhr.upload.onload = () => onProcessing();
+    xhr.onload = () => {
+      let data = {};
+      try { data = JSON.parse(xhr.responseText); } catch { /* not JSON */ }
+      if (xhr.status >= 200 && xhr.status < 300) resolve({ ...data, url: `${ORIGIN}${data.url}`, download: `${ORIGIN}${data.download}` });
+      else reject(new Error(data.error || `Failed (${xhr.status})`));
+    };
+    xhr.onerror = () => reject(new Error('Could not reach the agent. Is it running?'));
+    xhr.send(file);
+  });
+}
+
 // Upload with progress (fetch cannot report upload progress).
 export function uploadAvatarVideo(id, file, onProgress) {
   return new Promise((resolve, reject) => {
