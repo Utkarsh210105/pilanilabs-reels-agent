@@ -15,6 +15,7 @@ import { startScheduler } from './lib/scheduler.js';
 import { MEDIA_DIR } from './pipeline/renderReel.js';
 import authRouter from './routes/auth.js';
 import { authEnabled, readSession } from './lib/auth.js';
+import { verifyMediaSignature } from './lib/publicMedia.js';
 
 const app = express();
 const PORT = process.env.PORT || 4100;
@@ -33,6 +34,8 @@ app.use((req, res, next) => {
   const p = req.path;
   if (p === '/api/health' || p.startsWith('/api/auth/')) return next();
   if (req.method === 'POST' && p === '/api/leads/manychat') return next();
+  // Signed, expiring link to one reel file, for Instagram to download.
+  if ((req.method === 'GET' || req.method === 'HEAD') && p.startsWith('/api/public-media/')) return next();
   if (!p.startsWith('/api/') && !p.startsWith('/media/')) return next();
   if (authEnabled()) {
     if (readSession(req.headers.cookie)) return next();
@@ -47,6 +50,13 @@ app.use(express.json({ limit: '1mb' }));
 
 app.get('/api/health', (req, res) => res.json({ status: 'PilaniLabs reels API is running' }));
 app.use('/api/auth', authRouter);
+app.get(/^\/api\/public-media\/(.+)$/, (req, res) => {
+  const rel = decodeURIComponent(req.path.slice('/api/public-media/'.length));
+  if (!verifyMediaSignature(rel, req.query.exp, req.query.sig)) return res.status(403).json({ error: 'Link expired or invalid' });
+  res.sendFile(path.join(MEDIA_DIR, rel), { headers: { 'Cache-Control': 'no-store' } }, (err) => {
+    if (err && !res.headersSent) res.status(404).json({ error: 'Not found' });
+  });
+});
 // Uploaded avatar videos and rendered reels (local disk for now).
 app.use('/media', express.static(MEDIA_DIR, { maxAge: '1h' }));
 app.use('/api/news', newsRouter);

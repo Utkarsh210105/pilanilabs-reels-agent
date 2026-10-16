@@ -1,8 +1,7 @@
-import path from 'path';
 import pool from '../db.js';
 import { publishReel } from '../lib/instagram.js';
+import { signedMediaPath, withPublicBaseUrl } from '../lib/publicMedia.js';
 import { getScript } from './generateScript.js';
-import { MEDIA_DIR } from './renderReel.js';
 
 const MAX_CAPTION = 2200;
 const MAX_HASHTAGS = 5;
@@ -59,7 +58,11 @@ export async function publishNow(id) {
   );
   if (!s) throw new Error('This reel is not queued for posting.');
   try {
-    const r = await publishReel({ file: path.join(MEDIA_DIR, s.final_video), caption: s.publish_caption, coverMs: s.publish_cover_ms });
+    // Instagram downloads the reel from a signed, short-lived link; on the
+    // laptop that link goes through a temporary tunnel closed right after.
+    const r = await withPublicBaseUrl((base) => publishReel({
+      videoUrl: `${base}${signedMediaPath(s.final_video)}`, caption: s.publish_caption, coverMs: s.publish_cover_ms,
+    }));
     await pool.query(
       `UPDATE scripts SET publish_status = 'posted', ig_media_id = $1, published_url = COALESCE($2, published_url),
          published_at = now(), status = 'published', updated_at = now() WHERE id = $3`,

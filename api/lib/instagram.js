@@ -1,12 +1,10 @@
 // Instagram Content Publishing API ("Instagram API with Instagram Login").
-// Posts reels to the connected professional account. The video is uploaded
-// straight from this server (resumable upload), so it does not need a public
-// URL.
+// Posts reels to the connected professional account. Instagram downloads the
+// video from a public link (see lib/publicMedia.js for the temporary one).
 //
-// Flow: create a REELS container → upload the bytes → wait until Instagram
-// has processed it → publish → read the permalink.
+// Flow: create a REELS container from video_url → wait until Instagram has
+// processed it → publish → read the permalink.
 // Docs: developers.facebook.com/docs/instagram-platform/content-publishing
-import { readFile, stat } from 'fs/promises';
 import pool from '../db.js';
 
 const VERSION = process.env.IG_GRAPH_VERSION || 'v23.0';
@@ -79,37 +77,33 @@ async function waitUntilProcessed(containerId, { timeoutMs = 10 * 60_000 } = {})
   }
 }
 
-// Posts a reel and returns { mediaId, permalink }. coverMs picks the cover
-// frame (milliseconds into the video).
-export async function publishReel({ file, caption, coverMs }) {
+// Creates a reel container from a public video URL and waits until Instagram
+// has downloaded and processed it. Nothing is visible on the account until
+// publishContainer runs. (The Instagram-Login API needs video_url; it does
+// not take direct uploads.)
+export async function prepareReel({ videoUrl, caption, coverMs }) {
   const account = await getAccount();
   const container = await graph(`${account.id}/media`, {
     method: 'POST',
     params: {
       media_type: 'REELS',
-      upload_type: 'resumable',
+      video_url: videoUrl,
       caption,
       share_to_feed: true,
       thumb_offset: Number.isFinite(coverMs) ? Math.max(0, Math.round(coverMs)) : undefined,
     },
   });
-
-  const bytes = await readFile(file);
-  const size = (await stat(file)).size;
-  const uploadUrl = container.uri || `https://rupload.facebook.com/ig-api-upload/${VERSION}/${container.id}`;
-  const up = await fetch(uploadUrl, {
-    method: 'POST',
-    headers: { Authorization: `OAuth ${await token()}`, offset: '0', file_size: String(size) },
-    body: bytes,
-    signal: AbortSignal.timeout(10 * 60_000),
-  });
-  const upData = await up.json().catch(() => ({}));
-  if (!up.ok || upData.success === false) throw new Error(`Video upload to Instagram failed: ${upData.debug_info?.message || upData.error?.message || up.status}`);
-
   await waitUntilProcessed(container.id);
-  const published = await graph(`${account.id}/media_publish`, { method: 'POST', params: { creation_id: container.id } });
+  return { accountId: account.id, username: account.username, containerId: container.id };
+}
+
+// Posts a reel and returns { mediaId, permalink }. coverMs picks the cover
+// frame (milliseconds into the video).
+export async function publishReel({ videoUrl, caption, coverMs }) {
+  const { accountId, username, containerId } = await prepareReel({ videoUrl, caption, coverMs });
+  const published = await graph(`${accountId}/media_publish`, { method: 'POST', params: { creation_id: containerId } });
   const media = await graph(published.id, { params: { fields: 'permalink' } }).catch(() => ({}));
-  return { mediaId: published.id, permalink: media.permalink || null, username: account.username };
+  return { mediaId: published.id, permalink: media.permalink || null, username };
 }
 
 // ---- Insights (needs instagram_business_manage_insights) ------------------
