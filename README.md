@@ -52,6 +52,19 @@ ManyChat runs on the internet and cannot reach `localhost`. Until the app is dep
 
 Requests arriving through the tunnel can only reach `POST /api/leads/manychat` (and the secret is required); the dashboard and all other APIs answer only on this computer (see the guard in `server.js`). Leads only arrive while the laptop, the agent and the tunnel are running; deploying removes that.
 
+## Posting to Instagram
+
+Rendered reels can be posted (or scheduled) from the script page through Instagram's official Content Publishing API ("Instagram API with Instagram Login"). The video is uploaded straight from this server, so no public URL is needed. On success the script is marked published and the reel's link is saved (used to match "AI"/"JOB" leads to the reel). Scheduled posts go out within a minute of their time while the agent is running; the token is refreshed every Sunday.
+
+One-time setup (your own account needs no Meta App Review):
+1. Instagram must be a **professional** account (Creator or Business).
+2. developers.facebook.com → **My Apps → Create app** → use case **"Manage messaging & content on Instagram"** (Instagram API).
+3. **App roles → Roles → Add people → Instagram Tester** → `pilanilabs`. Accept the invite in the Instagram app (Settings → Website permissions / Apps and websites → Tester invites).
+4. In the app: **Instagram → API setup with Instagram login → Generate access tokens → Add account** → log in as @pilanilabs and allow `instagram_business_basic` and `instagram_business_content_publish`. Copy the token.
+5. Put it in `api/.env` as `IG_ACCESS_TOKEN=...` and restart. Settings shows "Connected as @pilanilabs".
+
+Limits: 50 API posts per 24 hours; captions up to 2,200 characters and 5 hashtags. The "AI info" label is set in the Instagram app after posting.
+
 ## Running it
 
 Double-click **Start Reels Agent.bat** (or the "PilaniLabs Reels Agent" desktop shortcut). It builds the dashboard, starts one server for the API and dashboard, and opens **http://localhost:4100**. Keep the window open while using it; close it to stop. From a terminal: `npm start` in this folder.

@@ -15,6 +15,7 @@ function jobSummary(job) {
 export default function Settings() {
   const [config, error] = useLoad(() => api.config());
   const [jobs, jobsError] = useLoad(() => api.jobs());
+  const [ig] = useLoad(() => api.instagram());
 
   return (
     <>
@@ -25,6 +26,13 @@ export default function Settings() {
       {config && (
         <div className="grid gap-6">
           {!config.llmConfigured && <ErrorBox error={{ message: 'OPENROUTER_API_KEY is not set in api/.env, so scripts cannot be written.' }} />}
+
+          <section className="card p-4 text-sm">
+            <h2 className="label mb-1">Instagram posting</h2>
+            {!ig ? <span className="text-muted">Checking…</span>
+              : ig.connected ? <span style={{ color: 'var(--c-ok)' }}>Connected as @{ig.username} ({ig.accountType?.toLowerCase().replace('_', ' ') || 'professional'} account). Token refreshes automatically every Sunday.</span>
+                : <span style={{ color: 'var(--c-warn)' }}>Not connected{ig.error ? `: ${ig.error}` : ''}. See README, "Posting to Instagram".</span>}
+          </section>
 
           <section>
             <h2 className="label mb-2">Audiences · api/config/audiences.js</h2>

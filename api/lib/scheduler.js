@@ -3,6 +3,8 @@ import pool from '../db.js';
 import { runJob, runningJob } from './jobs.js';
 import { dailyRun } from '../pipeline/dailyRun.js';
 import { scrapeActiveCreators } from '../pipeline/creatorReels.js';
+import { publishDue } from '../pipeline/publish.js';
+import { refreshToken, instagramConfigured } from './instagram.js';
 
 // 6:00 IST: AI news from the US lands overnight India time, so the morning
 // run catches it fresh and scripts are waiting for review by the workday.
@@ -31,6 +33,22 @@ export function startScheduler() {
     } catch (err) {
       console.error('[scheduler] creator scrape failed:', err.message);
     }
+  }, { timezone: 'Asia/Kolkata' });
+
+  // Scheduled Instagram posts: checked every minute.
+  cron.schedule('* * * * *', async () => {
+    try {
+      const done = await publishDue();
+      for (const d of done) console.log(`[scheduler] posted ${d.id}:`, d.error || d.permalink);
+    } catch (err) {
+      console.error('[scheduler] scheduled posting failed:', err.message);
+    }
+  }, { timezone: 'Asia/Kolkata' });
+
+  // Instagram tokens expire after 60 days; refresh weekly (Sundays 04:00).
+  cron.schedule('0 4 * * 0', async () => {
+    if (!(await instagramConfigured())) return;
+    try { console.log('[scheduler] Instagram token refreshed:', await refreshToken()); } catch (err) { console.error('[scheduler]', err.message); }
   }, { timezone: 'Asia/Kolkata' });
 
   // A job still 'running' after 20 minutes died with the process (a deploy or

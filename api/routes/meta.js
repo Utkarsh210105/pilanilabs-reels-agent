@@ -4,6 +4,7 @@ import { audiences } from '../config/audiences.js';
 import { brand } from '../config/brand.js';
 import { sources } from '../config/sources.js';
 import { tracks } from '../config/tracks.js';
+import { getAccount, instagramConfigured } from '../lib/instagram.js';
 
 const router = Router();
 
@@ -19,6 +20,16 @@ router.get('/config', (req, res) => {
     sources,
     llmConfigured: Boolean(process.env.OPENROUTER_API_KEY),
   });
+});
+
+// Whether Instagram posting is connected, and to which account.
+router.get('/instagram', async (req, res) => {
+  if (!(await instagramConfigured())) return res.json({ connected: false });
+  try {
+    res.json({ connected: true, ...(await getAccount()) });
+  } catch (err) {
+    res.json({ connected: false, error: err.message });
+  }
 });
 
 router.get('/jobs', async (req, res, next) => {

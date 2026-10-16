@@ -3,6 +3,7 @@ import pool from '../db.js';
 import { runJob, startJob } from '../lib/jobs.js';
 import { matchBrollForScript, chooseBroll, searchBroll, queueBrollMatch, queueBrollPreview } from '../pipeline/matchBroll.js';
 import { renderReel, MEDIA_DIR } from '../pipeline/renderReel.js';
+import { queuePublish, publishNow, cancelScheduled, defaultCaption } from '../pipeline/publish.js';
 import { probe } from '../lib/ffmpeg.js';
 import { createWriteStream } from 'fs';
 import { mkdir, rename, rm } from 'fs/promises';
@@ -225,6 +226,34 @@ router.get('/:id/final.mp4', async (req, res, next) => {
     if (!script.final_video) return res.status(404).json({ error: 'No rendered reel yet' });
     const name = `${script.title.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-').slice(0, 60) || 'reel'}.mp4`;
     res.download(path.join(MEDIA_DIR, script.final_video), name);
+  } catch (err) { next(err); }
+});
+
+// Post to Instagram now, or schedule it: { caption?, cover_ms?, publish_at? }
+router.post('/:id/publish', async (req, res, next) => {
+  try {
+    const { caption, cover_ms, publish_at } = req.body || {};
+    const script = await queuePublish(req.params.id, { caption, coverMs: Number(cover_ms), publishAt: publish_at });
+    if (script.publish_status === 'publishing') {
+      await startJob('publish_reel', script.id, () => publishNow(script.id));
+    }
+    res.status(202).json({ publish_status: script.publish_status, publish_at: script.publish_at });
+  } catch (err) { next(err); }
+});
+
+router.delete('/:id/publish', async (req, res, next) => {
+  try {
+    res.json(await cancelScheduled(req.params.id));
+  } catch (err) { next(err); }
+});
+
+router.get('/:id/publish', async (req, res, next) => {
+  try {
+    const s = await getScript(req.params.id);
+    res.json({
+      publish_status: s.publish_status, publish_at: s.publish_at, publish_error: s.publish_error,
+      published_url: s.published_url, default_caption: defaultCaption(s), caption: s.publish_caption,
+    });
   } catch (err) { next(err); }
 });
 

@@ -8,6 +8,7 @@ import { api } from '../api/client.js';
 import { AudienceChip, StatusChip, ErrorBox, FlagRow, ClaimRow, Spinner, timeAgo } from '../components/ui.jsx';
 import { BrollPick } from '../components/Broll.jsx';
 import FinalReel from '../components/FinalReel.jsx';
+import InstagramPost from '../components/InstagramPost.jsx';
 
 const EDITABLE = ['draft', 'rejected'];
 const countWords = (t) => t.split(/\s+/).filter(Boolean).length;
@@ -367,6 +368,7 @@ export default function ScriptPage() {
           {['approved', 'rendered', 'published'].includes(script.status) && (
             <FinalReel script={script} onRendered={() => api.script(script.id).then(load, setError)} />
           )}
+          {script.final_video && <InstagramPost script={script} onChanged={() => api.script(script.id).then(load, setError)} />}
           {['approved', 'rendered'].includes(script.status) && <HeygenPanel script={script} />}
 
           {editable && (
