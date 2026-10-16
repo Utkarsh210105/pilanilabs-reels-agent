@@ -12,18 +12,32 @@ import leadsRouter from './routes/leads.js';
 import toolsRouter from './routes/tools.js';
 import { startScheduler } from './lib/scheduler.js';
 import { MEDIA_DIR } from './pipeline/renderReel.js';
+import authRouter from './routes/auth.js';
+import { authEnabled, readSession } from './lib/auth.js';
 
 const app = express();
 const PORT = process.env.PORT || 4100;
 
-// ManyChat reaches this laptop through a public tunnel. Anything arriving
-// that way (a non-localhost Host) may only call the lead webhook; the
-// dashboard, scripts and leads stay reachable from this computer only.
+// Cloud Run sits behind Google's proxy: trust it for the client's protocol/IP.
+app.set('trust proxy', true);
+
+// Access rules.
+// Always open: health check, the ManyChat webhook (it checks its own secret),
+// sign-in, and the dashboard's static files (no data in them).
+// Everything else under /api and /media:
+//  - login on (GOOGLE_CLIENT_ID set, e.g. Cloud Run): a signed-in, allowed user
+//  - login off (the laptop): requests from this computer only
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
 app.use((req, res, next) => {
+  const p = req.path;
+  if (p === '/api/health' || p.startsWith('/api/auth/')) return next();
+  if (req.method === 'POST' && p === '/api/leads/manychat') return next();
+  if (!p.startsWith('/api/') && !p.startsWith('/media/')) return next();
+  if (authEnabled()) {
+    if (readSession(req.headers.cookie)) return next();
+    return res.status(401).json({ error: 'Not signed in' });
+  }
   if (LOCAL_HOSTS.has(req.hostname)) return next();
-  if (req.method === 'POST' && req.path === '/api/leads/manychat') return next();
-  if (req.path === '/api/health') return next();
   res.status(404).json({ error: 'Not found' });
 });
 
@@ -31,6 +45,7 @@ app.use(cors({ origin: process.env.DASHBOARD_ORIGIN || 'http://localhost:5174' }
 app.use(express.json({ limit: '1mb' }));
 
 app.get('/api/health', (req, res) => res.json({ status: 'PilaniLabs reels API is running' }));
+app.use('/api/auth', authRouter);
 // Uploaded avatar videos and rendered reels (local disk for now).
 app.use('/media', express.static(MEDIA_DIR, { maxAge: '1h' }));
 app.use('/api/news', newsRouter);
@@ -57,6 +72,6 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Reels agent running: open http://localhost:${PORT}`);
+  console.log(`Reels agent running: open ${process.env.PUBLIC_URL || `http://localhost:${PORT}`}${authEnabled() ? ' (Google login on)' : ''}`);
   startScheduler();
 });

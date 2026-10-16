@@ -3,6 +3,7 @@ import { createWriteStream } from 'fs';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import path from 'path';
+import { tmpdir } from 'os';
 import pool from '../db.js';
 import { scrapeInstagramReels } from '../lib/apify.js';
 import { runFfmpeg } from '../lib/ffmpeg.js';
@@ -53,7 +54,7 @@ async function saveThumbnail(url, shortCode) {
 // What was actually said, from the reel's own audio (the Namhya engine only
 // had captions and had to guess the script).
 async function transcribeReel(videoUrl, shortCode) {
-  const dir = path.join(MEDIA_DIR, 'tmp');
+  const dir = path.join(tmpdir(), 'reels-creator-tmp');
   await mkdir(dir, { recursive: true });
   const video = path.join(dir, `${shortCode}.mp4`);
   const audio = path.join(dir, `${shortCode}.mp3`);

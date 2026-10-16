@@ -65,6 +65,25 @@ One-time setup (your own account needs no Meta App Review):
 
 Limits: 50 API posts per 24 hours; captions up to 2,200 characters and 5 hashtags. The "AI info" label is set in the Instagram app after posting.
 
+## Deploying to Cloud Run
+
+Runs in **PilaniLabs' own Google Cloud project** (never another company's account). One always-on instance (1 vCPU, 2 GiB, CPU always allocated, max 1 instance) keeps the in-app schedules running; videos live in a Cloud Storage bucket mounted at `/mnt/media`; the dashboard requires **Google sign-in** for emails in `ALLOWED_EMAILS`.
+
+One-time setup:
+1. Pilani Google account → console.cloud.google.com → new project (e.g. `pilanilabs-reels`) with Pilani's billing.
+2. On this laptop, a separate gcloud profile (does not touch the default one):
+   ```
+   gcloud config configurations create pilanilabs --no-activate
+   $env:CLOUDSDK_ACTIVE_CONFIG_NAME="pilanilabs"; gcloud auth login; gcloud config set project <project-id>
+   ```
+   Enable APIs: `gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com storage.googleapis.com`
+3. Google sign-in: console → **Google Auth Platform** → Branding (app name, support email) → Audience → **Clients → Create client → Web application**; authorised JavaScript origin = the Cloud Run URL (add after the first deploy) and `http://localhost:4100`. Copy the client ID.
+4. `deploy/cloudrun.env.yaml` from `deploy/cloudrun.env.example.yaml` (git-ignored): the `api/.env` values + `PUBLIC_URL`, `GOOGLE_CLIENT_ID`, `ALLOWED_EMAILS`, `SESSION_SECRET`.
+5. `bash deploy/deploy-cloudrun.sh` (builds with Cloud Build, creates the bucket, deploys).
+6. Point ManyChat's External Request to `<PUBLIC_URL>/api/leads/manychat`.
+
+Run database migrations from the laptop (`npm --prefix api run migrate`) before deploying a version that adds one.
+
 ## Running it
 
 Double-click **Start Reels Agent.bat** (or the "PilaniLabs Reels Agent" desktop shortcut). It builds the dashboard, starts one server for the API and dashboard, and opens **http://localhost:4100**. Keep the window open while using it; close it to stop. From a terminal: `npm start` in this folder.

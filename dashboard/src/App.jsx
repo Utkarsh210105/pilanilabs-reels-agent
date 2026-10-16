@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink, Route, Routes } from 'react-router-dom';
 import { ListChecks, Newspaper, PlusCircle, Settings as SettingsIcon, Moon, Sun, Menu, X, TrendingUp, Users, Stamp } from 'lucide-react';
 import AddLogo from './pages/AddLogo.jsx';
+import { useUser } from './components/AuthGate.jsx';
 import Creators from './pages/Creators.jsx';
 import Leads from './pages/Leads.jsx';
 import Queue from './pages/Queue.jsx';
@@ -40,6 +41,7 @@ function ThemeToggle() {
 
 export default function App() {
   const [open, setOpen] = useState(false);
+  const user = useUser();
   return (
     <div className="min-h-screen md:flex">
       <header className="flex items-center justify-between border-b border-line bg-surface px-4 py-3 md:hidden">
@@ -68,6 +70,12 @@ export default function App() {
           <div className="mt-6 grid gap-4 md:mt-auto">
             <SyncButton />
             <ThemeToggle />
+            {user && !user.local && (
+              <div className="grid gap-1 text-xs text-muted">
+                <span className="truncate" title={user.email}>{user.email}</span>
+                <button className="w-fit underline hover:text-ink" onClick={user.signOut}>Sign out</button>
+              </div>
+            )}
           </div>
         </div>
       </aside>

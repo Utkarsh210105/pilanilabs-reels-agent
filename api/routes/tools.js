@@ -3,6 +3,7 @@ import { createWriteStream } from 'fs';
 import { mkdir, rm } from 'fs/promises';
 import { pipeline } from 'stream/promises';
 import path from 'path';
+import { tmpdir } from 'os';
 import { fileURLToPath } from 'url';
 import { probe, runFfmpeg } from '../lib/ffmpeg.js';
 import { chooseLogoSpot } from '../lib/logoSpot.js';
@@ -18,7 +19,7 @@ const MAX_BYTES = 1024 ** 3;
 // same audio (copied, not re-encoded). Takes roughly 20-60 seconds.
 router.post('/add-logo', async (req, res, next) => {
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const input = path.join(TOOLS_DIR, `${id}-in.mp4`);
+  const input = path.join(tmpdir(), `addlogo-${id}-in.mp4`);
   try {
     if (Number(req.headers['content-length'] || 0) > MAX_BYTES) return res.status(413).json({ error: 'Video is larger than 1 GB' });
     await mkdir(TOOLS_DIR, { recursive: true });

@@ -4,6 +4,7 @@ import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { tmpdir } from 'os';
 import pool from '../db.js';
 import { runFfmpeg, probe } from '../lib/ffmpeg.js';
 import { transcribeWords } from '../lib/whisper.js';
@@ -67,8 +68,11 @@ export async function renderReel(scriptId, jobId) {
   if (!script.avatar_video) throw new Error('Upload the HeyGen video first');
 
   const dir = path.join(MEDIA_DIR, scriptId);
-  const work = path.join(dir, `work-${Date.now()}`);
+  // Scratch files stay on local temp disk; only the finished reel goes to the
+  // media folder (a Cloud Storage bucket on Cloud Run).
+  const work = path.join(tmpdir(), `reels-work-${scriptId}-${Date.now()}`);
   await mkdir(work, { recursive: true });
+  await mkdir(dir, { recursive: true });
   try {
     await progress('Transcribing the voice');
     const timings = await timeScript(script, work);
