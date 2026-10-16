@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import './lib/dnsFallback.js';
 import path from 'path';
 import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';

@@ -1,5 +1,6 @@
 import pg from 'pg';
 import 'dotenv/config';
+import './lib/dnsFallback.js';
 
 const { Pool } = pg;
 
