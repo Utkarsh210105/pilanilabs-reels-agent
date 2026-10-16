@@ -4,6 +4,7 @@ import { runJob, runningJob } from './jobs.js';
 import { dailyRun } from '../pipeline/dailyRun.js';
 import { scrapeActiveCreators } from '../pipeline/creatorReels.js';
 import { publishDue } from '../pipeline/publish.js';
+import { syncInsights } from '../pipeline/insights.js';
 import { refreshToken, instagramConfigured } from './instagram.js';
 
 // 6:00 IST: AI news from the US lands overnight India time, so the morning
@@ -43,6 +44,15 @@ export function startScheduler() {
     } catch (err) {
       console.error('[scheduler] scheduled posting failed:', err.message);
     }
+  }, { timezone: 'Asia/Kolkata' });
+
+  // Instagram Insights: every 6 hours.
+  cron.schedule('15 */6 * * *', async () => {
+    if (!(await instagramConfigured())) return;
+    try {
+      if (await runningJob('sync_insights')) return;
+      await runJob('sync_insights', 'scheduled', () => syncInsights());
+    } catch (err) { console.error('[scheduler] insights sync failed:', err.message); }
   }, { timezone: 'Asia/Kolkata' });
 
   // Instagram tokens expire after 60 days; refresh weekly (Sundays 04:00).

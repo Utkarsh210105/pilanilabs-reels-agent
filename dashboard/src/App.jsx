@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Route, Routes } from 'react-router-dom';
-import { ListChecks, Newspaper, PlusCircle, Settings as SettingsIcon, Moon, Sun, Menu, X, TrendingUp, Users, Stamp } from 'lucide-react';
+import { ListChecks, Newspaper, PlusCircle, Settings as SettingsIcon, Moon, Sun, Menu, X, TrendingUp, Users, Stamp, BarChart3 } from 'lucide-react';
+import Insights from './pages/Insights.jsx';
 import AddLogo from './pages/AddLogo.jsx';
 import { useUser } from './components/AuthGate.jsx';
 import Creators from './pages/Creators.jsx';
@@ -17,6 +18,7 @@ const NAV = [
   { to: '/news', label: 'AI news', icon: Newspaper },
   { to: '/creators', label: 'Creator reels', icon: TrendingUp },
   { to: '/leads', label: 'Leads', icon: Users },
+  { to: '/insights', label: 'Insights', icon: BarChart3 },
   { to: '/new', label: 'New reel', icon: PlusCircle },
   { to: '/add-logo', label: 'Add logo', icon: Stamp },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
@@ -87,6 +89,7 @@ export default function App() {
           <Route path="/creators" element={<Creators />} />
           <Route path="/leads" element={<Leads />} />
           <Route path="/add-logo" element={<AddLogo />} />
+          <Route path="/insights" element={<Insights />} />
           <Route path="/new" element={<NewReel />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>

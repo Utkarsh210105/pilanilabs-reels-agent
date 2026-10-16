@@ -112,4 +112,50 @@ export async function publishReel({ file, caption, coverMs }) {
   return { mediaId: published.id, permalink: media.permalink || null, username: account.username };
 }
 
+// ---- Insights (needs instagram_business_manage_insights) ------------------
+
+export async function getAccountStats() {
+  const me = await graph('me', { params: { fields: 'user_id,username,followers_count,media_count' } });
+  return { id: me.user_id || me.id, username: me.username, followers: me.followers_count, mediaCount: me.media_count };
+}
+
+// The account's most recent posts (reels and feed), newest first.
+export async function listMedia(limit = 60) {
+  const out = [];
+  let after;
+  while (out.length < limit) {
+    const page = await graph('me/media', {
+      params: { fields: 'id,media_type,media_product_type,timestamp,permalink,caption,thumbnail_url,media_url', limit: Math.min(50, limit - out.length), after },
+    });
+    out.push(...(page.data || []));
+    after = page.paging?.cursors?.after;
+    if (!page.paging?.next || !after) break;
+  }
+  return out;
+}
+
+const REEL_METRICS = ['views', 'reach', 'likes', 'comments', 'shares', 'saved', 'total_interactions', 'ig_reels_avg_watch_time', 'ig_reels_video_view_total_time'];
+const FEED_METRICS = ['views', 'reach', 'likes', 'comments', 'shares', 'saved', 'total_interactions'];
+
+const metricValue = (m) => m?.values?.[0]?.value ?? m?.total_value?.value ?? null;
+
+// Lifetime metrics for one post. Asks for all at once; if Instagram rejects
+// one (older posts, feed vs reel differences), asks one by one and skips
+// the ones it refuses.
+export async function mediaInsights(id, isReel) {
+  const metrics = isReel ? REEL_METRICS : FEED_METRICS;
+  const result = {};
+  try {
+    const r = await graph(`${id}/insights`, { params: { metric: metrics.join(',') } });
+    for (const m of r.data || []) result[m.name] = metricValue(m);
+    return result;
+  } catch {
+    for (const metric of metrics) {
+      const r = await graph(`${id}/insights`, { params: { metric } }).catch(() => null);
+      if (r?.data?.[0]) result[metric] = metricValue(r.data[0]);
+    }
+    return result;
+  }
+}
+
 export const instagramConfigured = async () => Boolean((await getSetting('ig_access_token')) || process.env.IG_ACCESS_TOKEN);
